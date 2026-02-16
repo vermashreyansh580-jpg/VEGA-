@@ -16,6 +16,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
+      # Flutter 3.24.0 sabse stable hai Flet ke liye
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
@@ -78,7 +79,21 @@ jobs:
           EOF
 
       # ---------------------------------------------------------
-      # STEP 2: BRAIN (main.py)
+      # STEP 2: REQUIREMENTS (Crash Fixer)
+      # ---------------------------------------------------------
+      - name: 📝 Create requirements.txt
+        run: |
+          # 🔥 Flet automatically yahan se libraries uthayega
+          cat <<EOF > requirements.txt
+          flet
+          groq
+          SpeechRecognition
+          gTTS
+          requests
+          EOF
+
+      # ---------------------------------------------------------
+      # STEP 3: BRAIN (main.py)
       # ---------------------------------------------------------
       - name: 📝 Create main.py
         run: |
@@ -108,22 +123,24 @@ jobs:
                   print("✅ Brain Loaded")
               except ImportError as e:
                   print(f"❌ Error: {e}")
+                  page.snack_bar = ft.SnackBar(ft.Text(f"Missing: {e}"))
+                  page.snack_bar.open = True
+                  page.update()
 
           ft.app(target=main, assets_dir="assets")
           EOF
 
       # ---------------------------------------------------------
-      # STEP 3: BUILD APK (Space Fix)
+      # STEP 4: BUILD APK (Correct Command)
       # ---------------------------------------------------------
       - name: 🚀 Build APK
         run: |
-          # 🔥 FIX: Permissions ab SPACE separated hain (comma nahi)
-          # --permissions camera microphone location
+          # 🔥 FIX: --include-packages hata diya hai (requirements.txt handle karega)
+          # --permissions space separated hain
           
           yes | flet build apk \
             --project vega_app \
             --module-name main \
-            --include-packages flet,groq,SpeechRecognition,gTTS,requests \
             --permissions camera microphone location \
             --description "Vega AI Assistant"
 
