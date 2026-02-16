@@ -1,7 +1,1 @@
 flet
-supabase
-groq
-gTTS
-SpeechRecognition
-requests
-pydub
