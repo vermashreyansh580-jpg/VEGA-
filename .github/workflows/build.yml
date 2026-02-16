@@ -1,4 +1,4 @@
-name: VEGA Final Stable Build
+name: VEGA Final System
 on: [push]
 
 jobs:
@@ -16,144 +16,157 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      # 🔥 CRITICAL FIX: Hum Flutter 3.22.0 use karenge jo Flet ke saath best chalta hai
+      # 🔥 CRITICAL FIX: Flutter 3.24.0 use kar rahe hain jo sabse stable hai
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.22.0'
+          flutter-version: '3.24.0'
 
-      - name: 🏗️ Project Setup (Golden Version)
+      - name: Install Flet CLI
+        run: pip install flet
+
+      # ---------------------------------------------------------
+      # STEP 1: UI FILE (index.html) - Neon Reactor UI
+      # ---------------------------------------------------------
+      - name: 📝 Create assets/index.html
         run: |
-          # 1. Clean Start
-          rm -rf build_env
-          
-          # 2. Create Project (Is baar purane stable flutter se banega)
-          flutter create --platforms android --project-name vega_app build_env
-          
-          # 3. Assets Setup
-          mkdir -p build_env/assets
-          echo "Copying main.py..."
-          cp main.py build_env/assets/main.py
-
-      - name: 📝 FORCE PUBSPEC (Locked Versions)
-        run: |
-          # Hum versions ko lock kar rahe hain taaki mismatch na ho
-          cat <<EOF > build_env/pubspec.yaml
-          name: vega_app
-          description: VEGA God Mode
-          publish_to: 'none'
-          version: 1.0.0+1
-
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
-
-          dependencies:
-            flutter:
-              sdk: flutter
-            # Flet 0.22.1 is golden for Flutter 3.22
-            flet: 0.22.1
-            cupertino_icons: ^1.0.2
-
-          dev_dependencies:
-            flutter_test:
-              sdk: flutter
-            flutter_lints: ^2.0.0
-
-          flutter:
-            uses-material-design: true
-            assets:
-              - assets/main.py
-          EOF
-
-      - name: 💉 FIX main.dart (Stable Loader)
-        run: |
-          # Flet 0.22.1 ke liye simple loading logic
-          cat <<EOF > build_env/lib/main.dart
-          import 'package:flet/flet.dart';
-          import 'package:flutter/material.dart';
-
-          void main() async {
-            WidgetsFlutterBinding.ensureInitialized();
-            
-            // Flet 0.22.1 ko kisi init ki zaroorat nahi hoti, bas App run karo
-            runApp(const FletApp(
-              pageUrl: "main.py",
-              assetsDir: "assets",
-              title: "VEGA",
-            ));
-          }
-          EOF
-
-      - name: 💉 INJECT MANIFEST (Permissions)
-        run: |
-          MANIFEST="build_env/android/app/src/main/AndroidManifest.xml"
-          cat <<EOF > $MANIFEST
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.vega_app">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.SEND_SMS"/>
-              <uses-permission android:name="android.permission.READ_SMS"/>
-              <uses-permission android:name="android.permission.CALL_PHONE"/>
-              <uses-permission android:name="android.permission.READ_CONTACTS"/>
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              
-              <application android:label="VEGA" android:icon="@mipmap/ic_launcher" android:requestLegacyExternalStorage="true">
-                  <activity android:name=".MainActivity" 
-                      android:exported="true" 
-                      android:launchMode="singleTop" 
-                      android:theme="@style/LaunchTheme" 
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
-                      android:hardwareAccelerated="true" 
-                      android:windowSoftInputMode="adjustResize">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data android:name="flutterEmbedding" android:value="2" />
-              </application>
-          </manifest>
-          EOF
-
-      - name: 💉 INJECT KOTLIN (Permissions)
-        run: |
-          KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
-          mkdir -p $(dirname $KOTLIN_FILE)
-          cat <<EOF > $KOTLIN_FILE
-          package com.example.vega_app
-          import io.flutter.embedding.android.FlutterActivity
-          import android.content.pm.PackageManager
-          import android.os.Build
-          import androidx.core.app.ActivityCompat
-
-          class MainActivity: FlutterActivity() {
-              override fun onResume() {
-                  super.onResume()
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                      val p = arrayOf(
-                          android.Manifest.permission.RECORD_AUDIO,
-                          android.Manifest.permission.CAMERA,
-                          android.Manifest.permission.READ_CONTACTS,
-                          android.Manifest.permission.SEND_SMS,
-                          android.Manifest.permission.CALL_PHONE
-                      )
-                      ActivityCompat.requestPermissions(this, p, 101)
+          mkdir -p assets
+          cat <<EOF > assets/index.html
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                  body { 
+                      background-color: black; 
+                      display: flex; 
+                      flex-direction: column;
+                      justify-content: center; 
+                      align-items: center; 
+                      height: 100vh; 
+                      margin: 0; 
+                      overflow: hidden;
+                      font-family: 'Courier New', monospace;
                   }
-              }
-          }
+                  .reactor-container {
+                      position: relative;
+                      width: 300px;
+                      height: 300px;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                  }
+                  .reactor-ring {
+                      position: absolute;
+                      width: 100%;
+                      height: 100%;
+                      border: 4px solid #00ff00;
+                      border-radius: 50%;
+                      box-shadow: 0 0 20px #00ff00, inset 0 0 20px #00ff00;
+                      animation: spin 4s linear infinite;
+                  }
+                  .reactor-core {
+                      width: 150px;
+                      height: 150px;
+                      background: radial-gradient(circle, #ffffff 10%, #00ff00 90%);
+                      border-radius: 50%;
+                      box-shadow: 0 0 50px #00ff00, 0 0 100px #00ff00;
+                      animation: pulse 2s infinite ease-in-out;
+                  }
+                  h1 { color: #00ff00; margin-top: 50px; text-shadow: 0 0 10px #00ff00; letter-spacing: 5px; }
+                  
+                  @keyframes spin { 100% { transform: rotate(360deg); } }
+                  @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
+              </style>
+          </head>
+          <body>
+              <div class="reactor-container">
+                  <div class="reactor-ring"></div>
+                  <div class="reactor-core"></div>
+              </div>
+              <h1>VEGA ONLINE</h1>
+          </body>
+          </html>
           EOF
 
-      - name: 🚀 Final Build
+      # ---------------------------------------------------------
+      # STEP 2: REQUIREMENTS (Dependencies)
+      # ---------------------------------------------------------
+      - name: 📝 Create requirements.txt
         run: |
-          cd build_env
-          flutter pub get
-          flutter build apk --release
+          # Ye libraries phone ke andar install hongi
+          cat <<EOF > requirements.txt
+          flet
+          groq
+          SpeechRecognition
+          gTTS
+          requests
+          EOF
+
+      # ---------------------------------------------------------
+      # STEP 3: THE BRAIN (main.py)
+      # ---------------------------------------------------------
+      - name: 📝 Create main.py
+        run: |
+          cat <<EOF > main.py
+          import flet as ft
+          import os
+          
+          def main(page: ft.Page):
+              page.title = "VEGA"
+              page.bgcolor = "black"
+              page.padding = 0
+              
+              # HTML ko load karna
+              # Mobile mein assets folder root par hota hai
+              html_content = "<h1>Error Loading UI</h1>"
+              try:
+                  with open("assets/index.html", "r") as f:
+                      html_content = f.read()
+              except Exception as e:
+                  html_content = f"<h1>Error: {e}</h1>"
+
+              webview = ft.WebView(
+                  html=html_content,
+                  expand=True
+              )
+              
+              page.add(webview)
+              
+              # --- BRAIN CHECK ---
+              # Hum check karenge ki libraries load ho rahi hain ya nahi
+              try:
+                  import groq
+                  import speech_recognition
+                  print("✅ All Systems Operational")
+              except ImportError as e:
+                  print(f"❌ System Failure: {e}")
+                  page.snack_bar = ft.SnackBar(ft.Text(f"Missing Lib: {e}"))
+                  page.snack_bar.open = True
+                  page.update()
+
+          ft.app(target=main, assets_dir="assets")
+          EOF
+
+      # ---------------------------------------------------------
+      # STEP 4: FINAL BUILD (Flet CLI)
+      # ---------------------------------------------------------
+      - name: 🚀 Build APK (Correct Command)
+        run: |
+          # Hum Flet CLI use kar rahe hain kyunki ye automatically 
+          # Flutter Project banata hai aur Python Libraries pack karta hai.
+          # '--permissions' flag saari permissions Manifest mein daal dega.
+          
+          yes | flet build apk \
+            --project vega_app \
+            --module-name main \
+            --include-packages flet,groq,SpeechRecognition,gTTS,requests \
+            --permissions android.permission.RECORD_AUDIO,android.permission.INTERNET,android.permission.CAMERA,android.permission.SEND_SMS,android.permission.READ_SMS,android.permission.CALL_PHONE,android.permission.READ_CONTACTS \
+            --description "Vega AI Assistant"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VEGA-FINAL-APK
-          path: build_env/build/app/outputs/flutter-apk/app-release.apk
+          name: VEGA-ULTIMATE-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
