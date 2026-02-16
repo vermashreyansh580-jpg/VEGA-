@@ -1,4 +1,4 @@
-name: VEGA Final Black-Screen Fix
+name: VEGA Final Copy Fix
 on: [push]
 
 jobs:
@@ -20,28 +20,34 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Create Project & Arrange Files
+      - name: 🏗️ Project Setup & File Copy (Magic Step)
         run: |
-          # 1. Clean Slate
+          # 1. Pehle purana folder hatao
           rm -rf build_env
           
-          # 2. Create Flutter Project
+          # 2. Naya Flutter Project banao
           flutter create --platforms android --project-name vega_app build_env
           
-          # 3. Assets folder banao aur Python file copy karo
+          # 3. Assets folder banao (Jahan main.py jayega)
           mkdir -p build_env/assets
+          
+          # 🔥 YE HAI WO LINE JO ROOT SE UTHA KAR ASSETS MEIN DAALEGI
+          echo "Copying main.py from Root to Assets folder..."
           cp main.py build_env/assets/main.py
           
-          echo "✅ Project Created & Main.py Copied."
+          # 🛑 Check: Agar copy nahi hui to error de do
+          if [ ! -f "build_env/assets/main.py" ]; then
+             echo "❌ Error: main.py copy nahi hui!"
+             exit 1
+          fi
+          echo "✅ File Successfully Copied to Assets!"
 
-      - name: 📝 FORCE WRITE pubspec.yaml (Crucial Fix)
+      - name: 📝 FORCE PUBSPEC (Linking Assets)
         run: |
-          # Hum default pubspec ko uda kar apna wala daal rahe hain
-          # Taaki 'assets' section 100% sahi ho
-          
+          # Pubspec ko bata rahe hain ki file assets folder mein aa gayi hai
           cat <<EOF > build_env/pubspec.yaml
           name: vega_app
-          description: A new Flutter project.
+          description: VEGA God Mode
           publish_to: 'none'
           version: 1.0.0+1
 
@@ -51,7 +57,7 @@ jobs:
           dependencies:
             flutter:
               sdk: flutter
-            flet: ^0.22.0  # Stable version for loading Python
+            flet: ^0.22.0
             cupertino_icons: ^1.0.2
 
           dev_dependencies:
@@ -62,28 +68,26 @@ jobs:
           flutter:
             uses-material-design: true
             assets:
-              - assets/main.py  # 🔥 YE LINE BLACK SCREEN HATAYEGI
+              - assets/main.py  # Android ko bata rahe hain ki file pack karo
           EOF
-          echo "✅ pubspec.yaml Overwritten with Assets."
 
-      - name: 💉 FORCE WRITE main.dart (The Loader)
+      - name: 💉 FIX main.dart (Loader)
         run: |
+          # Dart code ko bata rahe hain ki file kaise load karni hai
           cat <<EOF > build_env/lib/main.dart
           import 'package:flet/flet.dart';
           import 'package:flutter/material.dart';
 
           void main() async {
-            // Ensure bindings are initialized
             WidgetsFlutterBinding.ensureInitialized();
             
             runApp(const FletApp(
-              pageUrl: "assets/main.py", // Asset path must match pubspec
-              assetsDir: "assets",
-              title: "VEGA AI",
+              pageUrl: "main.py",      // 🔥 Sirf filename (kyunki folder niche bataya hai)
+              assetsDir: "assets",     // Folder yahan bata diya hai
+              title: "VEGA",
             ));
           }
           EOF
-          echo "✅ main.dart Injected."
 
       - name: 💉 INJECT MANIFEST (Permissions)
         run: |
@@ -98,6 +102,8 @@ jobs:
               <uses-permission android:name="android.permission.CALL_PHONE"/>
               <uses-permission android:name="android.permission.READ_CONTACTS"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
               
               <application android:label="VEGA" android:icon="@mipmap/ic_launcher" android:requestLegacyExternalStorage="true">
                   <activity android:name=".MainActivity" 
@@ -117,7 +123,7 @@ jobs:
           </manifest>
           EOF
 
-      - name: 💉 INJECT KOTLIN (Auto-Permission)
+      - name: 💉 INJECT KOTLIN (Permissions)
         run: |
           KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           mkdir -p $(dirname $KOTLIN_FILE)
