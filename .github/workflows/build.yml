@@ -20,16 +20,16 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Create Project Structure (v2 Fix)
+      - name: 🏗️ Create Project Structure
         run: |
-          # 1. Fresh Project with explicit android platform
+          # Fresh Project create karo
           flutter create --platforms android --project-name vega_app build_env
           
-          # 2. Add flet simply
           cd build_env
+          # Flet ki latest stable version add karo jo null-safe ho
           flutter pub add flet
           
-          # 3. Create folder for Kotlin
+          # Kotlin package folder banao
           mkdir -p android/app/src/main/kotlin/com/example/vega_app
 
       - name: 💉 INJECT GOD-LEVEL MANIFEST (XML)
@@ -43,16 +43,12 @@ jobs:
               <uses-permission android:name="android.permission.CAMERA"/>
               <uses-permission android:name="android.permission.SEND_SMS"/>
               <uses-permission android:name="android.permission.READ_SMS"/>
-              <uses-permission android:name="android.permission.RECEIVE_SMS"/>
               <uses-permission android:name="android.permission.CALL_PHONE"/>
               <uses-permission android:name="android.permission.READ_CONTACTS"/>
-              <uses-permission android:name="android.permission.READ_CALL_LOG"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
               
               <application 
                   android:label="VEGA GOD" 
@@ -65,25 +61,16 @@ jobs:
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
                       android:hardwareAccelerated="true" 
                       android:windowSoftInputMode="adjustResize">
-                      
-                      <meta-data
-                          android:name="io.flutter.embedding.android.NormalTheme"
-                          android:resource="@style/NormalTheme" />
-                          
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
                   </activity>
-                  
-                  <meta-data
-                      android:name="flutterEmbedding"
-                      android:value="2" />
               </application>
           </manifest>
           EOF
 
-      - name: 💉 INJECT KOTLIN (Permission Logic)
+      - name: 💉 INJECT KOTLIN (Native Permission Popup)
         run: |
           KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           
@@ -96,42 +83,29 @@ jobs:
           import androidx.core.content.ContextCompat
 
           class MainActivity: FlutterActivity() {
-              private val REQ_CODE = 123
-
+              private val RC = 123
               override fun onResume() {
                   super.onResume()
-                  askGodPermissions()
-              }
-
-              private fun askGodPermissions() {
+                  val p = arrayOf(
+                      android.Manifest.permission.RECORD_AUDIO,
+                      android.Manifest.permission.CAMERA,
+                      android.Manifest.permission.READ_CONTACTS,
+                      android.Manifest.permission.SEND_SMS,
+                      android.Manifest.permission.CALL_PHONE
+                  )
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                      val perms = arrayOf(
-                          android.Manifest.permission.RECORD_AUDIO,
-                          android.Manifest.permission.CAMERA,
-                          android.Manifest.permission.READ_CONTACTS,
-                          android.Manifest.permission.SEND_SMS,
-                          android.Manifest.permission.CALL_PHONE,
-                          android.Manifest.permission.ACCESS_FINE_LOCATION
-                      )
-                      
-                      val missing = perms.filter {
-                          ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-                      }
-
-                      if (missing.isNotEmpty()) {
-                          ActivityCompat.requestPermissions(this, missing.toTypedArray(), REQ_CODE)
-                      }
+                      ActivityCompat.requestPermissions(this, p, RC)
                   }
               }
           }
           EOF
 
-      - name: 🚀 Build APK (Final Strike)
+      - name: 🚀 Build APK (Clean & Strike)
         run: |
           cd build_env
           flutter pub get
-          # Building with no-sound-null-safety to avoid minor library issues
-          flutter build apk --release --no-sound-null-safety
+          # Null-safety flag hata diya hai kyunki naya Flutter ise support nahi karta
+          flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
