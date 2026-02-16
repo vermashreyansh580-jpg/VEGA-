@@ -20,16 +20,16 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Create Project Structure Manually
+      - name: 🏗️ Create Project Structure (v2 Fix)
         run: |
-          # 1. Create Flutter Project skeleton
-          flutter create --project-name vega_app build_env
+          # 1. Fresh Project with explicit android platform
+          flutter create --platforms android --project-name vega_app build_env
           
-          # 2. Add only core flet dependency (Version independent)
+          # 2. Add flet simply
           cd build_env
           flutter pub add flet
           
-          # 3. Create folders for injection
+          # 3. Create folder for Kotlin
           mkdir -p android/app/src/main/kotlin/com/example/vega_app
 
       - name: 💉 INJECT GOD-LEVEL MANIFEST (XML)
@@ -54,7 +54,10 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
               <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
               
-              <application android:label="VEGA GOD" android:icon="@mipmap/ic_launcher">
+              <application 
+                  android:label="VEGA GOD" 
+                  android:icon="@mipmap/ic_launcher"
+                  android:requestLegacyExternalStorage="true">
                   <activity android:name=".MainActivity" 
                       android:exported="true" 
                       android:launchMode="singleTop" 
@@ -62,16 +65,25 @@ jobs:
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
                       android:hardwareAccelerated="true" 
                       android:windowSoftInputMode="adjustResize">
+                      
+                      <meta-data
+                          android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme" />
+                          
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
                   </activity>
+                  
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
               </application>
           </manifest>
           EOF
 
-      - name: 💉 INJECT KOTLIN (Permission Request Logic)
+      - name: 💉 INJECT KOTLIN (Permission Logic)
         run: |
           KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           
@@ -84,16 +96,16 @@ jobs:
           import androidx.core.content.ContextCompat
 
           class MainActivity: FlutterActivity() {
-              private val PERMISSION_REQUEST_CODE = 123
+              private val REQ_CODE = 123
 
               override fun onResume() {
                   super.onResume()
-                  checkAllPermissions()
+                  askGodPermissions()
               }
 
-              private fun checkAllPermissions() {
+              private fun askGodPermissions() {
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                      val permissions = arrayOf(
+                      val perms = arrayOf(
                           android.Manifest.permission.RECORD_AUDIO,
                           android.Manifest.permission.CAMERA,
                           android.Manifest.permission.READ_CONTACTS,
@@ -102,23 +114,24 @@ jobs:
                           android.Manifest.permission.ACCESS_FINE_LOCATION
                       )
                       
-                      val missing = permissions.filter {
+                      val missing = perms.filter {
                           ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
                       }
 
                       if (missing.isNotEmpty()) {
-                          ActivityCompat.requestPermissions(this, missing.toTypedArray(), PERMISSION_REQUEST_CODE)
+                          ActivityCompat.requestPermissions(this, missing.toTypedArray(), REQ_CODE)
                       }
                   }
               }
           }
           EOF
 
-      - name: 🚀 Final Build APK
+      - name: 🚀 Build APK (Final Strike)
         run: |
           cd build_env
           flutter pub get
-          flutter build apk --release
+          # Building with no-sound-null-safety to avoid minor library issues
+          flutter build apk --release --no-sound-null-safety
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
