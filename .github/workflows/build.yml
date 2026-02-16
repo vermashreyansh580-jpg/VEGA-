@@ -1,4 +1,4 @@
-name: VEGA Final Auto-Build
+name: VEGA Final Failure-Proof Build
 on: [push]
 
 jobs:
@@ -20,24 +20,32 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Create Project Structure
+      - name: 🏗️ Create Failure-Proof Project
         run: |
-          # Fresh Project create karo
+          # 1. Purana folder udaao (Clean Start)
+          rm -rf build_env
+          
+          # 2. Naya project banao (Sirf Android ke liye)
           flutter create --platforms android --project-name vega_app build_env
           
           cd build_env
-          # Flet ki latest stable version add karo jo null-safe ho
+          # Core flet add karo
           flutter pub add flet
           
-          # Kotlin package folder banao
+          # 3. Kotlin ka sahi path ensure karo
           mkdir -p android/app/src/main/kotlin/com/example/vega_app
+          
+          # 4. Purani v1 embedding wali files ko saaf karo (Safety)
+          rm -f android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt
 
-      - name: 💉 INJECT GOD-LEVEL MANIFEST (XML)
+      - name: 💉 INJECT v2 MANIFEST (Permissions)
         run: |
           MANIFEST="build_env/android/app/src/main/AndroidManifest.xml"
           
+          # Asli v2 Manifest likh rahe hain
           cat <<EOF > $MANIFEST
           <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.vega_app">
+              
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.RECORD_AUDIO"/>
               <uses-permission android:name="android.permission.CAMERA"/>
@@ -45,15 +53,15 @@ jobs:
               <uses-permission android:name="android.permission.READ_SMS"/>
               <uses-permission android:name="android.permission.CALL_PHONE"/>
               <uses-permission android:name="android.permission.READ_CONTACTS"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.READ_CALL_LOG"/>
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              
+
               <application 
                   android:label="VEGA GOD" 
                   android:icon="@mipmap/ic_launcher"
                   android:requestLegacyExternalStorage="true">
+                  
                   <activity android:name=".MainActivity" 
                       android:exported="true" 
                       android:launchMode="singleTop" 
@@ -61,17 +69,27 @@ jobs:
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
                       android:hardwareAccelerated="true" 
                       android:windowSoftInputMode="adjustResize">
+                      
+                      <meta-data
+                          android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme" />
+                          
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
                   </activity>
+
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
               </application>
           </manifest>
           EOF
 
-      - name: 💉 INJECT KOTLIN (Native Permission Popup)
+      - name: 💉 INJECT KOTLIN (Permission Logic)
         run: |
+          # Sahi path par Kotlin file likho
           KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           
           cat <<EOF > $KOTLIN_FILE
@@ -83,28 +101,31 @@ jobs:
           import androidx.core.content.ContextCompat
 
           class MainActivity: FlutterActivity() {
-              private val RC = 123
+              private val REQUEST_CODE = 101
+
               override fun onResume() {
                   super.onResume()
-                  val p = arrayOf(
-                      android.Manifest.permission.RECORD_AUDIO,
-                      android.Manifest.permission.CAMERA,
-                      android.Manifest.permission.READ_CONTACTS,
-                      android.Manifest.permission.SEND_SMS,
-                      android.Manifest.permission.CALL_PHONE
-                  )
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                      ActivityCompat.requestPermissions(this, p, RC)
+                      val perms = arrayOf(
+                          android.Manifest.permission.RECORD_AUDIO,
+                          android.Manifest.permission.CAMERA,
+                          android.Manifest.permission.READ_CONTACTS,
+                          android.Manifest.permission.SEND_SMS,
+                          android.Manifest.permission.CALL_PHONE,
+                          android.Manifest.permission.ACCESS_FINE_LOCATION
+                      )
+                      ActivityCompat.requestPermissions(this, perms, REQUEST_CODE)
                   }
               }
           }
           EOF
 
-      - name: 🚀 Build APK (Clean & Strike)
+      - name: 🚀 Final APK Build (Safe Mode)
         run: |
           cd build_env
+          # Dependencies fix karo
           flutter pub get
-          # Null-safety flag hata diya hai kyunki naya Flutter ise support nahi karta
+          # APK Build command (v2 embedding ke saath)
           flutter build apk --release
 
       - name: Upload APK
