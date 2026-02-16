@@ -1,5 +1,7 @@
 flet
+supabase
 groq
+gTTS
 SpeechRecognition
-plyer
 requests
+pydub
