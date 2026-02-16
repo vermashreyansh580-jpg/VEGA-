@@ -1,4 +1,4 @@
-name: VEGA Final System
+name: VEGA Final Build
 on: [push]
 
 jobs:
@@ -16,17 +16,17 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      # 🔥 CRITICAL FIX: Flutter 3.24.0 use kar rahe hain jo sabse stable hai
+      # Flutter 3.24.0 sabse stable hai Flet ke liye
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           flutter-version: '3.24.0'
 
-      - name: Install Flet CLI
+      - name: Install Flet
         run: pip install flet
 
       # ---------------------------------------------------------
-      # STEP 1: UI FILE (index.html) - Neon Reactor UI
+      # STEP 1: UI FILE (index.html)
       # ---------------------------------------------------------
       - name: 📝 Create assets/index.html
         run: |
@@ -47,126 +47,89 @@ jobs:
                       height: 100vh; 
                       margin: 0; 
                       overflow: hidden;
-                      font-family: 'Courier New', monospace;
+                      font-family: monospace;
                   }
-                  .reactor-container {
-                      position: relative;
-                      width: 300px;
-                      height: 300px;
+                  .reactor {
+                      width: 250px;
+                      height: 250px;
+                      border: 5px solid #00ff00;
+                      border-radius: 50%;
+                      box-shadow: 0 0 50px #00ff00;
                       display: flex;
                       justify-content: center;
                       align-items: center;
+                      animation: pulse 2s infinite;
                   }
-                  .reactor-ring {
-                      position: absolute;
-                      width: 100%;
-                      height: 100%;
-                      border: 4px solid #00ff00;
-                      border-radius: 50%;
-                      box-shadow: 0 0 20px #00ff00, inset 0 0 20px #00ff00;
-                      animation: spin 4s linear infinite;
-                  }
-                  .reactor-core {
+                  .core {
                       width: 150px;
                       height: 150px;
-                      background: radial-gradient(circle, #ffffff 10%, #00ff00 90%);
+                      background: radial-gradient(circle, #fff 10%, #00ff00 90%);
                       border-radius: 50%;
-                      box-shadow: 0 0 50px #00ff00, 0 0 100px #00ff00;
-                      animation: pulse 2s infinite ease-in-out;
                   }
-                  h1 { color: #00ff00; margin-top: 50px; text-shadow: 0 0 10px #00ff00; letter-spacing: 5px; }
-                  
-                  @keyframes spin { 100% { transform: rotate(360deg); } }
-                  @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
+                  h1 { color: #00ff00; margin-top: 30px; letter-spacing: 5px; }
+                  @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 80px #00ff00; } 100% { transform: scale(1); } }
               </style>
           </head>
           <body>
-              <div class="reactor-container">
-                  <div class="reactor-ring"></div>
-                  <div class="reactor-core"></div>
-              </div>
+              <div class="reactor"><div class="core"></div></div>
               <h1>VEGA ONLINE</h1>
           </body>
           </html>
           EOF
 
       # ---------------------------------------------------------
-      # STEP 2: REQUIREMENTS (Dependencies)
-      # ---------------------------------------------------------
-      - name: 📝 Create requirements.txt
-        run: |
-          # Ye libraries phone ke andar install hongi
-          cat <<EOF > requirements.txt
-          flet
-          groq
-          SpeechRecognition
-          gTTS
-          requests
-          EOF
-
-      # ---------------------------------------------------------
-      # STEP 3: THE BRAIN (main.py)
+      # STEP 2: BRAIN (main.py)
       # ---------------------------------------------------------
       - name: 📝 Create main.py
         run: |
           cat <<EOF > main.py
           import flet as ft
-          import os
           
           def main(page: ft.Page):
               page.title = "VEGA"
               page.bgcolor = "black"
               page.padding = 0
               
-              # HTML ko load karna
-              # Mobile mein assets folder root par hota hai
-              html_content = "<h1>Error Loading UI</h1>"
+              # Load UI
+              html_content = "<h1>Loading...</h1>"
               try:
                   with open("assets/index.html", "r") as f:
                       html_content = f.read()
-              except Exception as e:
-                  html_content = f"<h1>Error: {e}</h1>"
+              except:
+                  pass
 
-              webview = ft.WebView(
-                  html=html_content,
-                  expand=True
-              )
-              
+              webview = ft.WebView(html=html_content, expand=True)
               page.add(webview)
               
-              # --- BRAIN CHECK ---
-              # Hum check karenge ki libraries load ho rahi hain ya nahi
+              # Dependencies Check (Taaki crash na ho)
               try:
                   import groq
                   import speech_recognition
-                  print("✅ All Systems Operational")
+                  print("✅ Brain Loaded")
               except ImportError as e:
-                  print(f"❌ System Failure: {e}")
-                  page.snack_bar = ft.SnackBar(ft.Text(f"Missing Lib: {e}"))
-                  page.snack_bar.open = True
-                  page.update()
+                  print(f"❌ Error: {e}")
 
           ft.app(target=main, assets_dir="assets")
           EOF
 
       # ---------------------------------------------------------
-      # STEP 4: FINAL BUILD (Flet CLI)
+      # STEP 3: BUILD APK (Corrected Flags)
       # ---------------------------------------------------------
-      - name: 🚀 Build APK (Correct Command)
+      - name: 🚀 Build APK
         run: |
-          # Hum Flet CLI use kar rahe hain kyunki ye automatically 
-          # Flutter Project banata hai aur Python Libraries pack karta hai.
-          # '--permissions' flag saari permissions Manifest mein daal dega.
+          # 🔥 FIX: Permissions ko keywords mein badal diya hai (camera, microphone, location)
+          # Flet CLI SMS/Call permissions ko direct flag se support nahi karta,
+          # lekin Microphone (Jarvis ke liye) yahan se mil jayega.
           
           yes | flet build apk \
             --project vega_app \
             --module-name main \
             --include-packages flet,groq,SpeechRecognition,gTTS,requests \
-            --permissions android.permission.RECORD_AUDIO,android.permission.INTERNET,android.permission.CAMERA,android.permission.SEND_SMS,android.permission.READ_SMS,android.permission.CALL_PHONE,android.permission.READ_CONTACTS \
+            --permissions camera,microphone,location \
             --description "Vega AI Assistant"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VEGA-ULTIMATE-APK
+          name: VEGA-FINAL-APK
           path: build/app/outputs/flutter-apk/app-release.apk
