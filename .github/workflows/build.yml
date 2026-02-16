@@ -1,4 +1,4 @@
-name: VEGA Final Copy Fix
+name: VEGA Final Auto-Build
 on: [push]
 
 jobs:
@@ -20,31 +20,29 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Project Setup & File Copy (Magic Step)
+      - name: 🏗️ Project Setup & Copy Files
         run: |
-          # 1. Pehle purana folder hatao
+          # 1. Clean Start
           rm -rf build_env
           
-          # 2. Naya Flutter Project banao
+          # 2. Create Project
           flutter create --platforms android --project-name vega_app build_env
           
-          # 3. Assets folder banao (Jahan main.py jayega)
+          # 3. Assets Folder & Copy Main.py
           mkdir -p build_env/assets
           
-          # 🔥 YE HAI WO LINE JO ROOT SE UTHA KAR ASSETS MEIN DAALEGI
-          echo "Copying main.py from Root to Assets folder..."
+          echo "Copying main.py..."
           cp main.py build_env/assets/main.py
           
-          # 🛑 Check: Agar copy nahi hui to error de do
+          # Verify copy
           if [ ! -f "build_env/assets/main.py" ]; then
              echo "❌ Error: main.py copy nahi hui!"
              exit 1
           fi
-          echo "✅ File Successfully Copied to Assets!"
 
-      - name: 📝 FORCE PUBSPEC (Linking Assets)
+      - name: 📝 FORCE PUBSPEC (Version Fix)
         run: |
-          # Pubspec ko bata rahe hain ki file assets folder mein aa gayi hai
+          # 🔥 FIX: Flet version ^0.26.0 kar diya hai jo naye Flutter ko support karta hai
           cat <<EOF > build_env/pubspec.yaml
           name: vega_app
           description: VEGA God Mode
@@ -57,7 +55,7 @@ jobs:
           dependencies:
             flutter:
               sdk: flutter
-            flet: ^0.22.0
+            flet: ^0.26.0  # 🔥 Updated to Latest Stable
             cupertino_icons: ^1.0.2
 
           dev_dependencies:
@@ -68,12 +66,12 @@ jobs:
           flutter:
             uses-material-design: true
             assets:
-              - assets/main.py  # Android ko bata rahe hain ki file pack karo
+              - assets/main.py
           EOF
 
-      - name: 💉 FIX main.dart (Loader)
+      - name: 💉 FIX main.dart (New API Fix)
         run: |
-          # Dart code ko bata rahe hain ki file kaise load karni hai
+          # 🔥 FIX: Naye Flet version mein 'Flet.init()' use hota hai
           cat <<EOF > build_env/lib/main.dart
           import 'package:flet/flet.dart';
           import 'package:flutter/material.dart';
@@ -81,9 +79,12 @@ jobs:
           void main() async {
             WidgetsFlutterBinding.ensureInitialized();
             
+            // Flet 0.26.0+ initialization syntax
+            await Flet.init();
+            
             runApp(const FletApp(
-              pageUrl: "main.py",      // 🔥 Sirf filename (kyunki folder niche bataya hai)
-              assetsDir: "assets",     // Folder yahan bata diya hai
+              pageUrl: "main.py",
+              assetsDir: "assets",
               title: "VEGA",
             ));
           }
