@@ -78,7 +78,7 @@ jobs:
           EOF
 
       # ---------------------------------------------------------
-      # STEP 2: REQUIREMENTS (Dependencies)
+      # STEP 2: REQUIREMENTS
       # ---------------------------------------------------------
       - name: 📝 Create requirements.txt
         run: |
@@ -130,7 +130,7 @@ jobs:
       # ---------------------------------------------------------
       - name: 🚀 Build APK
         run: |
-          # Flet CLI se APK bana rahe hain
+          # Permissions space separated hain
           yes | flet build apk \
             --project vega_app \
             --module-name main \
@@ -138,11 +138,19 @@ jobs:
             --description "Vega AI Assistant"
 
       # ---------------------------------------------------------
-      # STEP 5: UPLOAD (PATH FIXED HERE)
+      # STEP 5: DEBUGGING (Find the APK)
+      # ---------------------------------------------------------
+      - name: 🕵️‍♂️ FIND THE APK
+        run: |
+          echo "Dhoondo APK kahan hai..."
+          find . -name "*.apk"
+
+      # ---------------------------------------------------------
+      # STEP 6: UPLOAD (WILDCARD MODE)
       # ---------------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: VEGA-FINAL-APK
-          # 🔥 FIX: Path mein 'vega_app/' add kiya hai
-          path: vega_app/build/app/outputs/flutter-apk/app-release.apk
+          # 🔥 FIX: 'Double Star' ka matlab hai kahin bhi ho, dhoond lo!
+          path: "**/*.apk"
