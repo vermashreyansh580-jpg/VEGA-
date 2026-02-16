@@ -1,4 +1,4 @@
-name: VEGA Final Auto-Build
+name: VEGA Final Black-Screen Fix
 on: [push]
 
 jobs:
@@ -20,36 +20,64 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Create Project & Assets
+      - name: 🏗️ Create Project & Arrange Files
         run: |
-          # 1. Fresh Project Setup
+          # 1. Clean Slate
           rm -rf build_env
+          
+          # 2. Create Flutter Project
           flutter create --platforms android --project-name vega_app build_env
           
-          cd build_env
-          # 2. Latest Flet package add karo
-          flutter pub add flet
+          # 3. Assets folder banao aur Python file copy karo
+          mkdir -p build_env/assets
+          cp main.py build_env/assets/main.py
           
-          # 3. Assets structure fix karo
-          mkdir -p assets
-          cp ../main.py assets/main.py
-          
-          # 4. Pubspec.yaml mein assets register karo
-          sed -i 's/# assets:/assets:\n    - assets\/main.py/g' pubspec.yaml
-          echo "✅ Project Structure Ready."
+          echo "✅ Project Created & Main.py Copied."
 
-      - name: 💉 FIX main.dart (The fletInit Error Fix)
+      - name: 📝 FORCE WRITE pubspec.yaml (Crucial Fix)
         run: |
-          # Is baar hum version-safe code use kar rahe hain
+          # Hum default pubspec ko uda kar apna wala daal rahe hain
+          # Taaki 'assets' section 100% sahi ho
+          
+          cat <<EOF > build_env/pubspec.yaml
+          name: vega_app
+          description: A new Flutter project.
+          publish_to: 'none'
+          version: 1.0.0+1
+
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+
+          dependencies:
+            flutter:
+              sdk: flutter
+            flet: ^0.22.0  # Stable version for loading Python
+            cupertino_icons: ^1.0.2
+
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_lints: ^2.0.0
+
+          flutter:
+            uses-material-design: true
+            assets:
+              - assets/main.py  # 🔥 YE LINE BLACK SCREEN HATAYEGI
+          EOF
+          echo "✅ pubspec.yaml Overwritten with Assets."
+
+      - name: 💉 FORCE WRITE main.dart (The Loader)
+        run: |
           cat <<EOF > build_env/lib/main.dart
           import 'package:flet/flet.dart';
           import 'package:flutter/material.dart';
 
           void main() async {
-            // Flet initialization version-safe tareeke se
+            // Ensure bindings are initialized
             WidgetsFlutterBinding.ensureInitialized();
+            
             runApp(const FletApp(
-              pageUrl: "assets/main.py",
+              pageUrl: "assets/main.py", // Asset path must match pubspec
               assetsDir: "assets",
               title: "VEGA AI",
             ));
@@ -57,7 +85,7 @@ jobs:
           EOF
           echo "✅ main.dart Injected."
 
-      - name: 💉 INJECT GOD-LEVEL MANIFEST (XML)
+      - name: 💉 INJECT MANIFEST (Permissions)
         run: |
           MANIFEST="build_env/android/app/src/main/AndroidManifest.xml"
           cat <<EOF > $MANIFEST
@@ -69,9 +97,7 @@ jobs:
               <uses-permission android:name="android.permission.READ_SMS"/>
               <uses-permission android:name="android.permission.CALL_PHONE"/>
               <uses-permission android:name="android.permission.READ_CONTACTS"/>
-              <uses-permission android:name="android.permission.READ_CALL_LOG"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               
               <application android:label="VEGA" android:icon="@mipmap/ic_launcher" android:requestLegacyExternalStorage="true">
                   <activity android:name=".MainActivity" 
@@ -91,7 +117,7 @@ jobs:
           </manifest>
           EOF
 
-      - name: 💉 INJECT KOTLIN (Permission Logic)
+      - name: 💉 INJECT KOTLIN (Auto-Permission)
         run: |
           KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           mkdir -p $(dirname $KOTLIN_FILE)
@@ -101,26 +127,25 @@ jobs:
           import android.content.pm.PackageManager
           import android.os.Build
           import androidx.core.app.ActivityCompat
-          import androidx.core.content.ContextCompat
 
           class MainActivity: FlutterActivity() {
               override fun onResume() {
                   super.onResume()
-                  val p = arrayOf(
-                      android.Manifest.permission.RECORD_AUDIO,
-                      android.Manifest.permission.CAMERA,
-                      android.Manifest.permission.READ_CONTACTS,
-                      android.Manifest.permission.SEND_SMS,
-                      android.Manifest.permission.CALL_PHONE
-                  )
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      val p = arrayOf(
+                          android.Manifest.permission.RECORD_AUDIO,
+                          android.Manifest.permission.CAMERA,
+                          android.Manifest.permission.READ_CONTACTS,
+                          android.Manifest.permission.SEND_SMS,
+                          android.Manifest.permission.CALL_PHONE
+                      )
                       ActivityCompat.requestPermissions(this, p, 101)
                   }
               }
           }
           EOF
 
-      - name: 🚀 Final Build APK
+      - name: 🚀 Final Build
         run: |
           cd build_env
           flutter pub get
@@ -129,5 +154,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VEGA-GOD-APK
+          name: VEGA-FINAL-APK
           path: build_env/build/app/outputs/flutter-apk/app-release.apk
