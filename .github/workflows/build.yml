@@ -20,33 +20,33 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Install Dependencies
-        run: pip install flet groq plyer SpeechRecognition
-
-      - name: 🏗️ Create Project Skeleton
+      - name: 🏗️ Create Master Project Structure
         run: |
-          # 1. Purana kachra saaf karo
-          rm -rf build_env
+          # 1. Fresh Flutter project (No Flet CLI bugs)
+          flutter create --platforms android --project-name vega_app build_env
           
-          # 2. Flet ko "y" feed karo taaki wo prompt par na ruke
-          echo "y" | flet build apk --project build_env --module-name main --verbose
+          cd build_env
+          # Flet ki library add karo
+          flutter pub add flet
           
-          # 3. Assets folder ensure karo
-          mkdir -p build_env/assets
-          cp main.py build_env/assets/main.py
+          # 2. Assets folder banao aur Python file wahan move karo
+          mkdir -p assets
+          cp ../main.py assets/main.py
+          
+          # 3. Pubspec.yaml mein assets declare karo
+          sed -i 's/# assets:/assets:\n    - assets\/main.py/g' pubspec.yaml
 
-      - name: 💉 FIX Dart Entry Point (The Error Fix)
+      - name: 💉 INJECT DART LOADER (The Vega Face)
         run: |
-          # Flet 0.80.5 ke liye naya Dart code
+          # Default Counter app ko delete karke VEGA loader daal rahe hain
           cat <<EOF > build_env/lib/main.dart
           import 'package:flet/flet.dart';
           import 'package:flutter/material.dart';
 
           void main() async {
-            // Naye version mein fletInit() use hota hai
             await fletInit();
             runApp(FletApp(
-              pageUrl: "main.py", // Assets se python dhoondega
+              pageUrl: "assets/main.py",
               assetsDir: "assets",
             ));
           }
@@ -56,7 +56,7 @@ jobs:
         run: |
           MANIFEST="build_env/android/app/src/main/AndroidManifest.xml"
           cat <<EOF > $MANIFEST
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.app">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.vega_app">
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.RECORD_AUDIO"/>
               <uses-permission android:name="android.permission.CAMERA"/>
@@ -65,12 +65,20 @@ jobs:
               <uses-permission android:name="android.permission.CALL_PHONE"/>
               <uses-permission android:name="android.permission.READ_CONTACTS"/>
               <uses-permission android:name="android.permission.READ_CALL_LOG"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               
-              <application android:label="VEGA" android:icon="@mipmap/ic_launcher" android:requestLegacyExternalStorage="true">
-                  <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
+              <application 
+                  android:label="VEGA" 
+                  android:icon="@mipmap/ic_launcher"
+                  android:requestLegacyExternalStorage="true">
+                  <activity android:name=".MainActivity" 
+                      android:exported="true" 
+                      android:launchMode="singleTop" 
+                      android:theme="@style/LaunchTheme" 
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
+                      android:hardwareAccelerated="true" 
+                      android:windowSoftInputMode="adjustResize">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
@@ -81,12 +89,12 @@ jobs:
           </manifest>
           EOF
 
-      - name: 💉 INJECT KOTLIN (Native Permissions)
+      - name: 💉 INJECT KOTLIN (Permission Logic)
         run: |
-          KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/app/MainActivity.kt"
+          KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           mkdir -p $(dirname $KOTLIN_FILE)
           cat <<EOF > $KOTLIN_FILE
-          package com.example.app
+          package com.example.vega_app
           import io.flutter.embedding.android.FlutterActivity
           import android.content.pm.PackageManager
           import android.os.Build
@@ -102,7 +110,7 @@ jobs:
                       android.Manifest.permission.READ_CONTACTS,
                       android.Manifest.permission.SEND_SMS,
                       android.Manifest.permission.CALL_PHONE,
-                      android.Manifest.permission.ACCESS_FINE_LOCATION
+                      android.Manifest.permission.READ_CALL_LOG
                   )
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                       ActivityCompat.requestPermissions(this, p, 101)
