@@ -1,28 +1,136 @@
-name: VEGA Simple Build
+name: VEGA Final Auto-Build
 on: [push]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+      
       - uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
+      
+      # Step 1: Flutter Pehle se Install karo (Taaki Flet baad mein na pooche)
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - run: pip install -r requirements.txt
-      
-      # Sabse Important Step:
-      # Hum Flet ko bolenge "Project mat bana, bas APK build kar"
-      # Kyunki 'android' folder humne khud upload kiya hai!
-      - run: flutter build apk --release
-      
-      - uses: actions/upload-artifact@v4
+          flutter-version: '3.19.0'
+
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🏗️ Create Project Structure (FORCE MODE)
+        run: |
+          # Pehle purana kachra saaf karo
+          rm -rf build_env
+          
+          # 🔥 FIX: 'yes' command ko pipe karke bhejeinge taaki wo ruke nahi
+          # Hum Flet se sirf project generate karwa rahe hain
+          echo "y" | flet build apk --project build_env --module-name main --verbose
+          
+          # Check karo ki project bana ya nahi
+          if [ ! -f "build_env/pubspec.yaml" ]; then
+             echo "❌ CRITICAL ERROR: Project generate nahi hua!"
+             exit 1
+          fi
+          echo "✅ Project Created Successfully!"
+
+      - name: 💉 INJECT ALL PERMISSIONS (XML)
+        run: |
+          MANIFEST="build_env/android/app/src/main/AndroidManifest.xml"
+          
+          cat <<EOF > $MANIFEST
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.app">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.SEND_SMS"/>
+              <uses-permission android:name="android.permission.READ_SMS"/>
+              <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+              <uses-permission android:name="android.permission.CALL_PHONE"/>
+              <uses-permission android:name="android.permission.READ_CALL_LOG"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+              <uses-permission android:name="android.permission.WAKE_LOCK"/>
+              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+              <uses-permission android:name="android.permission.READ_CONTACTS"/>
+
+              <application android:label="VEGA" android:icon="@mipmap/ic_launcher">
+                  <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          echo "✅ Permissions Injected."
+
+      - name: 💉 INJECT KOTLIN (Auto-Popup Logic)
+        run: |
+          KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/app/MainActivity.kt"
+          mkdir -p $(dirname $KOTLIN_FILE)
+          
+          cat <<EOF > $KOTLIN_FILE
+          package com.example.app
+          import io.flutter.embedding.android.FlutterActivity
+          import androidx.annotation.NonNull
+          import io.flutter.embedding.engine.FlutterEngine
+          import android.content.pm.PackageManager
+          import android.os.Build
+          import androidx.core.app.ActivityCompat
+          import androidx.core.content.ContextCompat
+          import java.util.ArrayList
+
+          class MainActivity: FlutterActivity() {
+              override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      val perms = arrayOf(
+                          android.Manifest.permission.RECORD_AUDIO,
+                          android.Manifest.permission.CAMERA,
+                          android.Manifest.permission.SEND_SMS,
+                          android.Manifest.permission.CALL_PHONE,
+                          android.Manifest.permission.READ_CONTACTS,
+                          android.Manifest.permission.ACCESS_FINE_LOCATION,
+                          android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                          android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                      )
+                      val requestList = ArrayList<String>()
+                      for (p in perms) {
+                          if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                              requestList.add(p)
+                          }
+                      }
+                      if (requestList.isNotEmpty()) {
+                          ActivityCompat.requestPermissions(this, requestList.toTypedArray(), 101)
+                      }
+                  }
+              }
+          }
+          EOF
+          echo "✅ Kotlin Logic Injected."
+
+      - name: 🚀 Build APK (Correct Folder)
+        run: |
+          # Yahan folder ke andar jaana zaroori hai
+          cd build_env
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: VEGA-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: VEGA-GOD-APK
+          path: build_env/build/app/outputs/flutter-apk/app-release.apk
