@@ -1,0 +1,28 @@
+name: VEGA Simple Build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - run: pip install -r requirements.txt
+      
+      # Sabse Important Step:
+      # Hum Flet ko bolenge "Project mat bana, bas APK build kar"
+      # Kyunki 'android' folder humne khud upload kiya hai!
+      - run: flutter build apk --release
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VEGA-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
