@@ -20,37 +20,42 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Create Master Project Structure
+      - name: 🏗️ Create Project & Assets
         run: |
-          # 1. Fresh Flutter project (No Flet CLI bugs)
+          # 1. Fresh Project Setup
+          rm -rf build_env
           flutter create --platforms android --project-name vega_app build_env
           
           cd build_env
-          # Flet ki library add karo
+          # 2. Latest Flet package add karo
           flutter pub add flet
           
-          # 2. Assets folder banao aur Python file wahan move karo
+          # 3. Assets structure fix karo
           mkdir -p assets
           cp ../main.py assets/main.py
           
-          # 3. Pubspec.yaml mein assets declare karo
+          # 4. Pubspec.yaml mein assets register karo
           sed -i 's/# assets:/assets:\n    - assets\/main.py/g' pubspec.yaml
+          echo "✅ Project Structure Ready."
 
-      - name: 💉 INJECT DART LOADER (The Vega Face)
+      - name: 💉 FIX main.dart (The fletInit Error Fix)
         run: |
-          # Default Counter app ko delete karke VEGA loader daal rahe hain
+          # Is baar hum version-safe code use kar rahe hain
           cat <<EOF > build_env/lib/main.dart
           import 'package:flet/flet.dart';
           import 'package:flutter/material.dart';
 
           void main() async {
-            await fletInit();
-            runApp(FletApp(
+            // Flet initialization version-safe tareeke se
+            WidgetsFlutterBinding.ensureInitialized();
+            runApp(const FletApp(
               pageUrl: "assets/main.py",
               assetsDir: "assets",
+              title: "VEGA AI",
             ));
           }
           EOF
+          echo "✅ main.dart Injected."
 
       - name: 💉 INJECT GOD-LEVEL MANIFEST (XML)
         run: |
@@ -68,10 +73,7 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               
-              <application 
-                  android:label="VEGA" 
-                  android:icon="@mipmap/ic_launcher"
-                  android:requestLegacyExternalStorage="true">
+              <application android:label="VEGA" android:icon="@mipmap/ic_launcher" android:requestLegacyExternalStorage="true">
                   <activity android:name=".MainActivity" 
                       android:exported="true" 
                       android:launchMode="singleTop" 
@@ -109,8 +111,7 @@ jobs:
                       android.Manifest.permission.CAMERA,
                       android.Manifest.permission.READ_CONTACTS,
                       android.Manifest.permission.SEND_SMS,
-                      android.Manifest.permission.CALL_PHONE,
-                      android.Manifest.permission.READ_CALL_LOG
+                      android.Manifest.permission.CALL_PHONE
                   )
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                       ActivityCompat.requestPermissions(this, p, 101)
@@ -119,7 +120,7 @@ jobs:
           }
           EOF
 
-      - name: 🚀 Final APK Build
+      - name: 🚀 Final Build APK
         run: |
           cd build_env
           flutter pub get
@@ -128,5 +129,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VEGA-ULTIMATE-APK
+          name: VEGA-GOD-APK
           path: build_env/build/app/outputs/flutter-apk/app-release.apk
