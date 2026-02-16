@@ -16,57 +16,52 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      # Step 1: Flutter Pehle se Install karo (Taaki Flet baad mein na pooche)
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.19.0'
 
-      - name: Install Python Dependencies
-        run: pip install -r requirements.txt
-
-      - name: 🏗️ Create Project Structure (FORCE MODE)
+      - name: 🏗️ Create Project Structure Manually
         run: |
-          # Pehle purana kachra saaf karo
-          rm -rf build_env
+          # 1. Create Flutter Project skeleton manually
+          flutter create --project-name vega_app build_env
           
-          # 🔥 FIX: 'yes' command ko pipe karke bhejeinge taaki wo ruke nahi
-          # Hum Flet se sirf project generate karwa rahe hain
-          echo "y" | flet build apk --project build_env --module-name main --verbose
+          # 2. Add dependencies to pubspec.yaml
+          cd build_env
+          sed -i '/dependencies:/a \  flet: ^0.21.0\n  flet_audio: ^0.21.0\n  flet_permission_handler: ^0.21.0' pubspec.yaml
           
-          # Check karo ki project bana ya nahi
-          if [ ! -f "build_env/pubspec.yaml" ]; then
-             echo "❌ CRITICAL ERROR: Project generate nahi hua!"
-             exit 1
-          fi
-          echo "✅ Project Created Successfully!"
+          # 3. Create necessary folders
+          mkdir -p assets
+          mkdir -p android/app/src/main/kotlin/com/example/vega_app
 
       - name: 💉 INJECT ALL PERMISSIONS (XML)
         run: |
+          # Overwriting the generated Manifest
           MANIFEST="build_env/android/app/src/main/AndroidManifest.xml"
           
           cat <<EOF > $MANIFEST
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.app">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.vega_app">
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.RECORD_AUDIO"/>
               <uses-permission android:name="android.permission.CAMERA"/>
               <uses-permission android:name="android.permission.SEND_SMS"/>
               <uses-permission android:name="android.permission.READ_SMS"/>
-              <uses-permission android:name="android.permission.RECEIVE_SMS"/>
               <uses-permission android:name="android.permission.CALL_PHONE"/>
-              <uses-permission android:name="android.permission.READ_CALL_LOG"/>
+              <uses-permission android:name="android.permission.READ_CONTACTS"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.WAKE_LOCK"/>
               <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-              <uses-permission android:name="android.permission.READ_CONTACTS"/>
-
-              <application android:label="VEGA" android:icon="@mipmap/ic_launcher">
-                  <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
+              
+              <application android:label="VEGA GOD" android:icon="@mipmap/ic_launcher">
+                  <activity android:name=".MainActivity" 
+                      android:exported="true" 
+                      android:launchMode="singleTop" 
+                      android:theme="@style/LaunchTheme" 
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
+                      android:hardwareAccelerated="true" 
+                      android:windowSoftInputMode="adjustResize">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
@@ -75,56 +70,42 @@ jobs:
               </application>
           </manifest>
           EOF
-          echo "✅ Permissions Injected."
 
-      - name: 💉 INJECT KOTLIN (Auto-Popup Logic)
+      - name: 💉 INJECT KOTLIN (Permission Logic)
         run: |
-          KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/app/MainActivity.kt"
-          mkdir -p $(dirname $KOTLIN_FILE)
+          KOTLIN_FILE="build_env/android/app/src/main/kotlin/com/example/vega_app/MainActivity.kt"
           
           cat <<EOF > $KOTLIN_FILE
-          package com.example.app
+          package com.example.vega_app
           import io.flutter.embedding.android.FlutterActivity
-          import androidx.annotation.NonNull
-          import io.flutter.embedding.engine.FlutterEngine
           import android.content.pm.PackageManager
           import android.os.Build
           import androidx.core.app.ActivityCompat
           import androidx.core.content.ContextCompat
-          import java.util.ArrayList
 
           class MainActivity: FlutterActivity() {
-              override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
-                  super.configureFlutterEngine(flutterEngine)
+              override fun onResume() {
+                  super.onResume()
+                  checkPermissions()
+              }
+
+              private fun checkPermissions() {
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                       val perms = arrayOf(
                           android.Manifest.permission.RECORD_AUDIO,
                           android.Manifest.permission.CAMERA,
-                          android.Manifest.permission.SEND_SMS,
-                          android.Manifest.permission.CALL_PHONE,
                           android.Manifest.permission.READ_CONTACTS,
-                          android.Manifest.permission.ACCESS_FINE_LOCATION,
-                          android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                          android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                          android.Manifest.permission.SEND_SMS,
+                          android.Manifest.permission.CALL_PHONE
                       )
-                      val requestList = ArrayList<String>()
-                      for (p in perms) {
-                          if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
-                              requestList.add(p)
-                          }
-                      }
-                      if (requestList.isNotEmpty()) {
-                          ActivityCompat.requestPermissions(this, requestList.toTypedArray(), 101)
-                      }
+                      ActivityCompat.requestPermissions(this, perms, 101)
                   }
               }
           }
           EOF
-          echo "✅ Kotlin Logic Injected."
 
-      - name: 🚀 Build APK (Correct Folder)
+      - name: 🚀 Final Build APK
         run: |
-          # Yahan folder ke andar jaana zaroori hai
           cd build_env
           flutter pub get
           flutter build apk --release
