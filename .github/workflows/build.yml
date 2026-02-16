@@ -18,12 +18,14 @@ jobs:
 
       - name: Build APK
         run: |
-          # Microphone, Camera, Location, Storage permissions included
+          # 🔥 FIX: Removed 'internet' & 'storage' flags (Flet adds Internet by default)
+          # Only using valid flags: camera, microphone, location
+          
           yes | flet build apk \
             --project vega_final \
             --module-name main \
             --target-arch arm64-v8a \
-            --permissions microphone camera location internet manage_external_storage \
+            --permissions camera microphone location \
             --description "VEGA AI OS - God Mode"
 
       - name: Upload APK
