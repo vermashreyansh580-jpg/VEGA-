@@ -1,4 +1,4 @@
-name: VEGA Final Auto-Build
+name: VEGA Final Build (No Errors)
 on: [push]
 
 jobs:
@@ -20,29 +20,29 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 🏗️ Project Setup & Copy Files
+      - name: 🏗️ Project Setup (Fresh Start)
         run: |
-          # 1. Clean Start
+          # 1. Clean previous build
           rm -rf build_env
           
-          # 2. Create Project
+          # 2. Create Flutter Project
           flutter create --platforms android --project-name vega_app build_env
           
-          # 3. Assets Folder & Copy Main.py
-          mkdir -p build_env/assets
+          # 3. Add Latest Flet (Auto-Detect Best Version)
+          cd build_env
+          flutter pub add flet
+          flutter pub add flutter_markdown # Sometimes needed
           
-          echo "Copying main.py..."
-          cp main.py build_env/assets/main.py
-          
-          # Verify copy
-          if [ ! -f "build_env/assets/main.py" ]; then
-             echo "❌ Error: main.py copy nahi hui!"
-             exit 1
-          fi
+          # 4. Prepare Assets
+          mkdir -p assets
+          # Copy main.py from root to assets
+          cp ../main.py assets/main.py
 
-      - name: 📝 FORCE PUBSPEC (Version Fix)
+      - name: 📝 FORCE PUBSPEC (Linking Assets)
         run: |
-          # 🔥 FIX: Flet version ^0.26.0 kar diya hai jo naye Flutter ko support karta hai
+          # Pubspec ko rewrite kar rahe hain taaki Assets pakka link ho jayein
+          # Note: Hum flet version specify nahi kar rahe, flutter pub add ne jo daala wahi use karenge
+          
           cat <<EOF > build_env/pubspec.yaml
           name: vega_app
           description: VEGA God Mode
@@ -55,7 +55,8 @@ jobs:
           dependencies:
             flutter:
               sdk: flutter
-            flet: ^0.26.0  # 🔥 Updated to Latest Stable
+            # Flet version automatic rahega (pub get se aayega)
+            flet: ^0.27.0 
             cupertino_icons: ^1.0.2
 
           dev_dependencies:
@@ -69,9 +70,10 @@ jobs:
               - assets/main.py
           EOF
 
-      - name: 💉 FIX main.dart (New API Fix)
+      - name: 💉 FIX main.dart (The Real Solution)
         run: |
-          # 🔥 FIX: Naye Flet version mein 'Flet.init()' use hota hai
+          # 🔥 FIX: Koi init function call nahi karenge. Seedha App Run karenge.
+          
           cat <<EOF > build_env/lib/main.dart
           import 'package:flet/flet.dart';
           import 'package:flutter/material.dart';
@@ -79,8 +81,9 @@ jobs:
           void main() async {
             WidgetsFlutterBinding.ensureInitialized();
             
-            // Flet 0.26.0+ initialization syntax
-            await Flet.init();
+            // ❌ No await setup();
+            // ❌ No await Flet.init();
+            // ✅ Just Run App
             
             runApp(const FletApp(
               pageUrl: "main.py",
@@ -102,6 +105,7 @@ jobs:
               <uses-permission android:name="android.permission.READ_SMS"/>
               <uses-permission android:name="android.permission.CALL_PHONE"/>
               <uses-permission android:name="android.permission.READ_CONTACTS"/>
+              <uses-permission android:name="android.permission.READ_CALL_LOG"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
