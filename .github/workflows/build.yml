@@ -16,7 +16,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      # Flutter 3.24.0 sabse stable hai Flet ke liye
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
@@ -26,7 +25,7 @@ jobs:
         run: pip install flet
 
       # ---------------------------------------------------------
-      # STEP 1: UI FILE (index.html)
+      # STEP 1: UI FILE
       # ---------------------------------------------------------
       - name: 📝 Create assets/index.html
         run: |
@@ -79,11 +78,10 @@ jobs:
           EOF
 
       # ---------------------------------------------------------
-      # STEP 2: REQUIREMENTS (Crash Fixer)
+      # STEP 2: REQUIREMENTS (Dependencies)
       # ---------------------------------------------------------
       - name: 📝 Create requirements.txt
         run: |
-          # 🔥 Flet automatically yahan se libraries uthayega
           cat <<EOF > requirements.txt
           flet
           groq
@@ -123,29 +121,28 @@ jobs:
                   print("✅ Brain Loaded")
               except ImportError as e:
                   print(f"❌ Error: {e}")
-                  page.snack_bar = ft.SnackBar(ft.Text(f"Missing: {e}"))
-                  page.snack_bar.open = True
-                  page.update()
 
           ft.app(target=main, assets_dir="assets")
           EOF
 
       # ---------------------------------------------------------
-      # STEP 4: BUILD APK (Correct Command)
+      # STEP 4: BUILD APK
       # ---------------------------------------------------------
       - name: 🚀 Build APK
         run: |
-          # 🔥 FIX: --include-packages hata diya hai (requirements.txt handle karega)
-          # --permissions space separated hain
-          
+          # Flet CLI se APK bana rahe hain
           yes | flet build apk \
             --project vega_app \
             --module-name main \
             --permissions camera microphone location \
             --description "Vega AI Assistant"
 
+      # ---------------------------------------------------------
+      # STEP 5: UPLOAD (PATH FIXED HERE)
+      # ---------------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: VEGA-FINAL-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          # 🔥 FIX: Path mein 'vega_app/' add kiya hai
+          path: vega_app/build/app/outputs/flutter-apk/app-release.apk
